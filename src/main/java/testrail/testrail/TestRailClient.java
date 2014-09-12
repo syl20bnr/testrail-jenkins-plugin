@@ -30,6 +30,10 @@ import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import testrail.testrail.TestRailObjects.*;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import javax.xml.ws.http.HTTPException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -129,6 +133,20 @@ public class TestRailClient {
         return (200 == response.getStatus());
     }
 
+    public Project[] getProjects() throws IOException, ElementNotFoundException {
+        String body = httpGet("/index.php?/api/v2/get_projects").getBody();
+        JSONArray json = new JSONArray(body);
+        Project[] projects = new Project[json.length()];
+        for (int i = 0; i < json.length(); i++) {
+            JSONObject o = json.getJSONObject(i);
+            Project p = new Project();
+            p.setName(o.getString("name"));
+            p.setId(o.getInt("id"));
+            projects[i] = p;
+        }
+        return projects;
+    }
+
     public int getProjectId(String projectName) throws IOException, ElementNotFoundException {
         String body = httpGet("/index.php?/api/v2/get_projects").getBody();
         Project[] projects = this.objectMapper.readValue(body, Project[].class);
@@ -138,6 +156,25 @@ public class TestRailClient {
             }
         }
         throw new ElementNotFoundException(projectName);
+    }
+
+    public Suite[] getSuites(int projectId) throws IOException, ElementNotFoundException {
+        String body = httpGet("/index.php?/api/v2/get_suites/" + projectId).getBody();
+        JSONArray json;
+        try {
+            json = new JSONArray(body);
+        } catch (JSONException e) {
+            return new Suite[0];
+        }
+        Suite[] suites = new Suite[json.length()];
+        for (int i = 0; i < json.length(); i++) {
+            JSONObject o = json.getJSONObject(i);
+            Suite s = new Suite();
+            s.setName(o.getString("name"));
+            s.setId(o.getInt("id"));
+            suites[i] = s;
+        }
+        return suites;
     }
 
     public int getSuiteId(int projectId, String suiteName) throws IOException, ElementNotFoundException {

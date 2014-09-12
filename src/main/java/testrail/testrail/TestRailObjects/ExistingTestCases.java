@@ -31,20 +31,16 @@ import java.util.List;
  */
 public class ExistingTestCases {
     private TestRailClient testRailClient;
-    private String project;
     private int projectId;
-    private String suite;
     private int suiteId;
     private List<Case> cases;
     private List<Section> sections;;
 
-    public ExistingTestCases(TestRailClient testRailClient, String project, String suite)
+    public ExistingTestCases(TestRailClient testRailClient, int projectId, int suiteId)
             throws IOException, ElementNotFoundException {
-        this.project = project;
+        this.projectId = projectId;
+        this.suiteId = suiteId;
         this.testRailClient = testRailClient;
-        this.projectId = testRailClient.getProjectId(this.project);
-        this.suite = suite;
-        this.suiteId = testRailClient.getSuiteId(this.projectId, this.suite);
         this.cases = new ArrayList<Case>(Arrays.asList(testRailClient.getCases(this.projectId, this.suiteId)));
         this.sections = new ArrayList<Section>(Arrays.asList(testRailClient.getSections(this.projectId, this.suiteId)));
     }

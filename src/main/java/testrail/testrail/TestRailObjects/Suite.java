@@ -40,4 +40,6 @@ public class Suite {
     public String getName() {
         return this.name;
     }
+
+    public String getStringId() { return Integer.toString(this.id); }
 }

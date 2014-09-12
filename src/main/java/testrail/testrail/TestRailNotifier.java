@@ -27,21 +27,27 @@ import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.tasks.*;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import net.sf.json.JSONObject;
+
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
+
 import testrail.testrail.JunitResults.Failure;
 import testrail.testrail.JunitResults.JUnitResults;
 import testrail.testrail.JunitResults.Testcase;
 import testrail.testrail.JunitResults.Testsuite;
 import testrail.testrail.TestRailObjects.ElementNotFoundException;
 import testrail.testrail.TestRailObjects.ExistingTestCases;
+import testrail.testrail.TestRailObjects.Project;
 import testrail.testrail.TestRailObjects.Result;
 import testrail.testrail.TestRailObjects.Results;
+import testrail.testrail.TestRailObjects.Suite;
 
 import javax.servlet.ServletException;
 import javax.xml.bind.JAXBException;
+
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -49,22 +55,22 @@ import java.util.List;
 
 public class TestRailNotifier extends Notifier {
 
-    private String testrailProject;
-    private String testrailSuite;
+    private int testrailProject;
+    private int testrailSuite;
     private String junitResultsGlob;
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public TestRailNotifier(String testrailProject, String testrailSuite, String junitResultsGlob) {
+    public TestRailNotifier(int testrailProject, int testrailSuite, String junitResultsGlob) {
         this.testrailProject = testrailProject;
         this.testrailSuite = testrailSuite;
         this.junitResultsGlob = junitResultsGlob;
     }
 
-    public void setTestrailProject(String project) { this.testrailProject = project;}
-    public String getTestrailProject() { return this.testrailProject; }
-    public void setTestrailSuite(String suite) { this.testrailSuite = suite; }
-    public String getTestrailSuite() { return this.testrailSuite; }
+    public void setTestrailProject(int project) { this.testrailProject = project;}
+    public int getTestrailProject() { return this.testrailProject; }
+    public void setTestrailSuite(int suite) { this.testrailSuite = suite; }
+    public int getTestrailSuite() { return this.testrailSuite; }
     public void setJunitResultsGlob(String glob) { this.junitResultsGlob = glob; }
     public String getJunitResultsGlob() { return this.junitResultsGlob; }
 
@@ -226,50 +232,57 @@ public class TestRailNotifier extends Notifier {
          * @return
          *      Indicates the outcome of the validation. This is sent to the browser.
          */
-        public FormValidation doCheckTestrailProject(@QueryParameter String value)
+        public FormValidation doCheckTestrailProject(@QueryParameter int value)
                 throws IOException, ServletException {
-            if (value.length() == 0) {
-                return FormValidation.error("Please set a project name.");
-            }
             testrail.setHost(getTestrailHost());
             testrail.setUser(getTestrailUser());
             testrail.setPassword(getTestrailPassword());
-            if (!getTestrailHost().isEmpty() || ! getTestrailUser().isEmpty() || !getTestrailPassword().isEmpty() || !testrail.serverReachable() || !testrail.authenticationWorks()) {
+            if (getTestrailHost().isEmpty() || getTestrailUser().isEmpty() || getTestrailPassword().isEmpty() || !testrail.serverReachable() || !testrail.authenticationWorks()) {
                 return FormValidation.warning("Please fix your TestRail configuration in Manage Jenkins -> Configure System.");
-            }
-            try {
-                int projectId = testrail.getProjectId(value);
-            } catch (ElementNotFoundException e) {
-                return FormValidation.error("Project " + value + " not found on TestRail server.");
             }
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckTestrailSuite(@QueryParameter String value,
-                                                   @QueryParameter String testrailProject)
+        public FormValidation doCheckTestrailSuite(@QueryParameter String value)
                 throws IOException, ServletException {
-            if (value.length() == 0) {
-                return FormValidation.error("Please set a suite name.");
-            }
             testrail.setHost(getTestrailHost());
             testrail.setUser(getTestrailUser());
             testrail.setPassword(getTestrailPassword());
-            if (!getTestrailHost().isEmpty() || ! getTestrailUser().isEmpty() || !getTestrailPassword().isEmpty() || !testrail.serverReachable() || !testrail.authenticationWorks()) {
+            if (getTestrailHost().isEmpty() || getTestrailUser().isEmpty() || getTestrailPassword().isEmpty() || !testrail.serverReachable() || !testrail.authenticationWorks()) {
                 return FormValidation.warning("Please fix your TestRail configuration in Manage Jenkins -> Configure System.");
-            } else {
-                int projectId;
-                try {
-                    projectId = testrail.getProjectId(testrailProject);
-                } catch (ElementNotFoundException e) {
-                    return FormValidation.error("Project " + testrailProject + " not found on TestRail server.");
-                }
-                try {
-                    int suiteId = testrail.getSuiteId(projectId, value);
-                } catch (ElementNotFoundException e) {
-                    return FormValidation.error("Suite " + value + " not found on TestRail server.");
-                }
             }
             return FormValidation.ok();
+        }
+
+        public ListBoxModel doFillTestrailProjectItems() {
+            testrail.setHost(getTestrailHost());
+            testrail.setUser(getTestrailUser());
+            testrail.setPassword(getTestrailPassword());
+            ListBoxModel items = new ListBoxModel();
+            try {
+                for (Project prj : testrail.getProjects()) {
+                    items.add(prj.getName(), prj.getStringId());
+                }
+            } catch (ElementNotFoundException e) {
+            } catch (IOException e) {
+            }
+            return items;
+        }
+
+        public ListBoxModel doFillTestrailSuiteItems(@QueryParameter int testrailProject) {
+            testrail.setHost(getTestrailHost());
+            testrail.setUser(getTestrailUser());
+            testrail.setPassword(getTestrailPassword());
+            ListBoxModel items = new ListBoxModel();
+
+            try {
+                for (Suite suite : testrail.getSuites(testrailProject)) {
+                    items.add(suite.getName(), suite.getStringId());
+                }
+            } catch (ElementNotFoundException e) {
+            } catch (IOException e) {
+            }
+            return items;
         }
 
         public FormValidation doCheckJunitResultsGlob(@QueryParameter String value)
